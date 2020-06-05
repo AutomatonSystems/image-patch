@@ -1,0 +1,12 @@
+{
+  "type": "module",
+  "name": "automaton-image-patch",
+  "version": "1.0.0",
+  "description": "A brute force image patching library",
+  "main": "image-patch.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}

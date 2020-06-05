@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<!-- Load TensorFlow.js -->
+		<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.2"></script>
+		<!-- Load BodyPix -->
+		<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.0"></script>
+
+		<style>
+			:root{
+				--rotate: 0deg;
+				--shunt: 0px;
+				--abs-shunt: 0px;
+			}
+
+
+			.layers{
+				position: relative;
+				height: 500px;
+				width: 500px;
+				perspective: 1500px;
+
+				margin: 50px;
+			}
+
+			canvas{
+				transition: 0.4s transform ease;
+			}
+
+			.layers canvas#person{
+				position: relative;
+				transform: translateX(0) rotateY(0);
+				z-index: 10;
+				outline: 2px dashed #0007;
+			}
+
+			.layers canvas#output{
+				transform:  translateX(0px) rotateY(0);
+				z-index: 0;
+			}
+
+
+			.layers:hover canvas#person{
+				transform: translateX(var(--shunt)) rotateY(var(--rotate)) translateZ(var(--abs-shunt)) ;
+				
+			}
+
+			.layers:hover canvas#output{
+				transform: translateX(0px) rotateY(var(--rotate));
+			}
+
+			canvas#input,canvas#person,canvas#output{
+				position: fixed;
+				top: 0;
+				left: 50%;
+
+				margin-left: -15vw;
+				width: 30vw;
+				
+				background-color: transparent;
+				transform-style: preserve-3d;
+			}
+
+
+			html, body{
+				background-color: #999;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="layers"> 
+			<canvas id="input"></canvas>
+		</div>
+
+		<script type="module">
+			import patch from "./image-patch.js";
+
+			async function segment(img){
+				const net = await bodyPix.load();
+				const segmentation = await net.segmentPerson(img,{
+					flipHorizontal: false,
+					internalResolution: 'high',
+					segmentationThreshold: 0.2
+				});
+				return segmentation;
+			}
+
+			(async ()=>{
+				let container = document.querySelector('.layers');
+
+				let image = 'q1.jpg';//'blue-dress.jpg';//'blue-dress.jpg'//'orange.jpg'//
+
+				let blob = await((await fetch(`./images/${image}`)).blob());
+				
+				let input = document.body.querySelector('#input');
+				await blobToCanvas(blob, input);
+
+				let target = document.createElement('canvas');
+				let person = document.createElement('canvas');
+				let w = input.width;
+				let h = input.height;
+				target.width = w;
+				target.height = h;
+				person.width = w;
+				person.height = h;
+				let ctx = target.getContext('2d');
+				let ctx2 = person.getContext('2d');
+				ctx.drawImage(input,0,0);
+				ctx2.drawImage(input,0,0);
+				let seg = await segment(target);
+				console.log(seg.length, w*h, w,h );
+
+				let block = 20;
+				let block2 = 2;
+				for(let x = 0; x < seg.width; x++){
+					for(let y = 0; y < seg.height; y++){
+						let index = x + y*seg.width;
+						if(seg.data[index] > 0){
+							ctx.clearRect(x - block,y - block,block*2,block*2);
+						}else{
+							ctx2.clearRect(x - block2,y - block2,block2*2,block2*2);
+						}
+					}
+				}
+				person.id = 'person';
+				
+				let pixels = ctx.getImageData(0,0,w,h);
+
+				// dosomething cool with those pixels
+				let output = document.createElement('canvas');
+				output.width = target.width;
+				output.height = target.height;
+				output.id = 'output';
+				container.appendChild(output);
+				container.appendChild(person);
+				let outputPixels = await patch(output, pixels,w,h);
+
+				input.style.display = "none";
+				
+
+				let r = 20;
+				let s = 60;
+				
+				setRot(r, s);
+				
+			})().catch(e=>{
+				document.body.innerHTML = `<pre>${e.stack}</pre>`	
+			});
+
+			function blobToCanvas(blob, canvas=null){
+				return new Promise((res)=>{
+					var img = new Image();
+					img.onload = function(){
+						let c = canvas || document.createElement("canvas");
+						let ctx = c.getContext("2d");
+						c.width =  img.naturalWidth;
+						c.height =  img.naturalHeight;
+
+						ctx.beginPath();
+						ctx.rect(0, 0, c.width, c.height);
+						ctx.fillStyle = "white";
+						ctx.fill();
+
+						ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, 0,0, c.width, c.height);
+						res(c);
+					}
+					img.src = URL.createObjectURL(blob);
+				});
+			}
+
+			function setRot(r,s){
+				let root = document.documentElement;
+				root.style.setProperty('--rotate', r+"deg");
+				root.style.setProperty('--shunt', s+"px");
+				root.style.setProperty('--abs-shunt', Math.abs(s)+"px");
+			}
+
+			window.setRot = setRot;
+		</script>
+
+	</body>
+</html>
