@@ -181,7 +181,7 @@ class ImagePatch{
 		
 		this.grid = [];
 
-		console.log(`patching image ${img.width}x${img.height}`)
+		
 
 		let i = new ScalableImage(img);
 		this.source = i;
@@ -189,6 +189,8 @@ class ImagePatch{
 		let factor = Math.floor(i.width * i.height / SCALEDOWN);
 		
 		this.image = (factor>1)?i.rescale(factor):i;
+
+		console.log(`patching image ${this.image.width}x${this.image.height} (downscale ${factor})`)
 
 		this.width = i.width;
 		this.height = i.height;
